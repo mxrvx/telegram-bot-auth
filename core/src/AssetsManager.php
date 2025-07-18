@@ -10,105 +10,155 @@ namespace MXRVX\Telegram\Bot\Auth;
  * name: string,
  * src: string,
  * isEntry: bool,
- *     css: array<string>,
+ * css: array<string>
  * }
  *
  * @psalm-type ManifestStructure = array<string, ManifestItemStructure>
  */
 class AssetsManager
 {
-    //    public static function registerAssets(\modX|\modExtraManagerController &$instance, bool $noCss = false): void
-    //    {
-    //        if ($instance instanceof \modX) {
-    //            self::registerFrontendAssets($instance, $noCss);
-    //        }
-    //        if ($instance instanceof \modExtraManagerController) {
-    //            self::registerBackendAssets($instance, $noCss);
-    //        }
-    //    }
+    protected const DEV_DEFAULT_PORT = 9090;
 
-    public static function registerFrontendAssets(\modX &$modx, bool $withoutCss = false): void
+    public static function registerFrontendAssets(\modX $modx, bool $withoutCss = false): void
     {
-        $assets = self::getAssetsFromManifest('web');
-
-        if ($assets) {
-            //@NOTE: Production mode
-            foreach ($assets as $file) {
-                if (\str_ends_with($file, '.js')) {
-                    $modx->regClientHTMLBlock('<script type="module" src="' . $file . '"></script>');
-                } elseif (!$withoutCss) {
-                    $modx->regClientCss($file);
-                }
-            }
-        } else {
-            //@NOTE: Development mode
-            $port = \getenv('NODE_DEV_PORT') ?: '9090';
-            $connection = @\fsockopen('node', (int) $port);
-            if (@\is_resource($connection)) {
-                $server = \explode(':', MODX_HTTP_HOST);
-                $baseUrl = MODX_ASSETS_URL . 'components/' . App::NAMESPACE . '/';
-                $vite = MODX_URL_SCHEME . $server[0] . ':' . $port . $baseUrl;
-                $modx->regClientHTMLBlock('<script type="module" src="' . $vite . '@vite/client"></script>');
-                $modx->regClientHTMLBlock('<script type="module" src="' . $vite . 'src/web.ts"></script>');
-            }
-        }
+        /** @psalm-suppress MissingClosureReturnType */
+        self::registerAssets(
+            $modx,
+            'web',
+            $withoutCss,
+            static fn(string $file) => $modx->regClientHTMLBlock(\sprintf('<script type="module" src="%s"></script>', $file)),
+            static fn(string $file) => $modx->regClientCss($file),
+        );
     }
 
-    public static function registerBackendAssets(\modExtraManagerController &$controller, bool $withoutCss = false): void
+    public static function registerBackendAssets(\modExtraManagerController $controller, bool $withoutCss = false): void
     {
-        $assets = self::getAssetsFromManifest('mgr');
-
-        if ($assets) {
-            //@NOTE: Production mode
-            foreach ($assets as $file) {
-                if (\str_ends_with($file, '.js')) {
-                    $controller->addHtml('<script type="module" src="' . $file . '"></script>');
-                } elseif (!$withoutCss) {
-                    $controller->addCss($file);
-                }
-            }
-        } else {
-            //@NOTE: Development mode
-            $port = \getenv('NODE_DEV_PORT') ?: '9090';
-            $connection = @\fsockopen('node', (int) $port);
-            if (@\is_resource($connection)) {
-                $server = \explode(':', MODX_HTTP_HOST);
-                $baseUrl = MODX_ASSETS_URL . 'components/' . App::NAMESPACE . '/';
-                $vite = MODX_URL_SCHEME . $server[0] . ':' . $port . $baseUrl;
-                $controller->addHtml('<script type="module" src="' . $vite . '@vite/client"></script>');
-                $controller->addHtml('<script type="module" src="' . $vite . 'src/mgr.ts"></script>');
-            }
-        }
+        /** @psalm-suppress MissingClosureReturnType */
+        self::registerAssets(
+            $controller,
+            'mgr',
+            $withoutCss,
+            static fn(string $file) => $controller->addHtml(\sprintf('<script type="module" src="%s"></script>', $file)),
+            static fn(string $file) => $controller->addCss($file),
+        );
     }
 
     /**
-     * @return array<string>
+     * @param callable(string): void $jsRegister
+     * @param callable(string): void $cssRegister
+     */
+    protected static function registerAssets(
+        \modX|\modExtraManagerController $instance,
+        string                           $context,
+        bool                             $withoutCss,
+        callable                         $jsRegister,
+        callable                         $cssRegister,
+    ): void {
+        $assets = self::getAssetsFromManifest($context);
+
+        if (!empty($assets)) {
+            foreach ($assets as $file) {
+                if (\str_ends_with($file, '.js')) {
+                    $jsRegister($file);
+                } elseif (!$withoutCss) {
+                    $cssRegister($file);
+                }
+            }
+        } else {
+            self::registerDevelopmentAssets($instance, $context);
+        }
+    }
+
+    protected static function registerDevelopmentAssets(\modX|\modExtraManagerController $instance, string $context): void
+    {
+        $port = (int) (\getenv('NODE_DEV_PORT') ?: self::DEV_DEFAULT_PORT);
+        $connection = @\fsockopen('node', $port, $errno, $errstr, 0.1);
+
+        if (\is_resource($connection)) {
+            \fclose($connection);
+
+            $host = self::getHostFromModxHttpHost();
+
+            $baseAssetPath = MODX_ASSETS_URL . 'components/' . App::NAMESPACE . '/';
+            $viteUrl = MODX_URL_SCHEME . $host . ':' . $port . '/' . \ltrim($baseAssetPath, '/');
+
+            $clientScript = \sprintf('<script type="module" src="%s@vite/client"></script>', $viteUrl);
+            $mainScript = \sprintf('<script type="module" src="%ssrc/%s.ts"></script>', $viteUrl, $context);
+
+            if ($instance instanceof \modX) {
+                $instance->regClientHTMLBlock($clientScript);
+                $instance->regClientHTMLBlock($mainScript);
+            } else {
+                $instance->addHtml($clientScript);
+                $instance->addHtml($mainScript);
+            }
+        }
+    }
+
+    protected static function getHostFromModxHttpHost(): string
+    {
+        /** @psalm-suppress TypeDoesNotContainType */
+        if (!\defined('MODX_HTTP_HOST') || empty(MODX_HTTP_HOST)) {
+            return 'localhost';
+        }
+
+        /** @var string $host */
+        $host = MODX_HTTP_HOST;
+        if (\str_starts_with($host, 'http://') || \str_starts_with($host, 'https://')) {
+            $parsedHost = \parse_url($host, PHP_URL_HOST);
+            if (!empty($parsedHost)) {
+                return $parsedHost;
+            }
+        }
+
+        $hostParts = \explode(':', $host, 2);
+        if (!empty($hostParts[0])) {
+            return $hostParts[0];
+        }
+
+        return 'localhost';
+    }
+
+    /**
+     * @return string[]
      */
     protected static function getAssetsFromManifest(string $context): array
     {
         $baseUrl = MODX_ASSETS_URL . 'components/' . App::NAMESPACE . '/src/' . $context . '/';
-        $manifest = MODX_ASSETS_PATH . 'components/' . App::NAMESPACE . '/src/' . $context . '/manifest.json';
+        $manifestPath = MODX_ASSETS_PATH . 'components/' . App::NAMESPACE . '/src/' . $context . '/manifest.json';
+
+        if (!\file_exists($manifestPath) || !\is_readable($manifestPath)) {
+            return [];
+        }
+
+        $content = \file_get_contents($manifestPath);
+        if ($content === false) {
+            return [];
+        }
+
+        /** @var ManifestStructure $manifest */
+        $manifest = \json_decode($content, true);
+        if (\json_last_error() !== JSON_ERROR_NONE) {
+            $manifest = [];
+        }
+
 
         $assets = [];
-        if (\file_exists($manifest) && \is_string($content = @\file_get_contents($manifest))) {
+        foreach ($manifest as $entry) {
 
-            /** @var ManifestStructure $files */
-            $files = \json_decode($content, true);
-            if (\json_last_error() !== JSON_ERROR_NONE) {
-                $files = [];
+            /** @psalm-suppress RedundantCondition */
+            if (!empty($entry['css']) && \is_array($entry['css'])) {
+                foreach ($entry['css'] as $cssFile) {
+                    $assets[] = $baseUrl . $cssFile;
+                }
             }
 
-            foreach ($files as $name => $file) {
-                if (!empty($file['css'])) {
-                    foreach ($file['css'] as $css) {
-                        $assets[] = $baseUrl . $css;
-                    }
-                }
+            if (!empty($entry['file']) && \str_ends_with($entry['file'], '.js')) {
+                $assets[] = $baseUrl . $entry['file'];
+            }
 
-                if (\str_contains($name, '.ts')) {
-                    $assets[] = $baseUrl . $file['file'];
-                }
-
+            if (!empty($entry['file']) && \str_ends_with($entry['file'], '.ts')) {
+                $assets[] = $baseUrl . $entry['file'];
             }
         }
 

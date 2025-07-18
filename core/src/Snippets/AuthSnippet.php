@@ -48,11 +48,6 @@ class AuthSnippet extends AbstractSnippet
         ]);
     }
 
-    public function getPls(): array
-    {
-        return parent::getPls() + ['task' => $this->task->toArray()];
-    }
-
     public function __invoke(): mixed
     {
         $this->task->config = $this->getConfigProperties();
