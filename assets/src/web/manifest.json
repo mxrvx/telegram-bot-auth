@@ -1,0 +1,18 @@
+{
+  "_alpinejs@3.14.9.min.js": {
+    "file": "alpinejs@3.14.9.min.js",
+    "name": "alpinejs"
+  },
+  "src/web.ts": {
+    "file": "web-BZs9IqR7.js",
+    "name": "web",
+    "src": "src/web.ts",
+    "isEntry": true,
+    "imports": [
+      "_alpinejs@3.14.9.min.js"
+    ],
+    "css": [
+      "web-DrS0cgRS.css"
+    ]
+  }
+}

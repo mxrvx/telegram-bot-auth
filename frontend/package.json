@@ -1,0 +1,39 @@
+{
+    "name": "app",
+    "private": true,
+    "version": "1.0.0",
+    "type": "module",
+    "scripts": {
+        "dev": "npm run dev:web",
+        "build": "npm run build:web",
+        "dev:mgr": "vite --config vite.config.mgr.ts",
+        "dev:web": "vite --config vite.config.web.ts",
+        "build:mgr": "vite build --config vite.config.mgr.ts",
+        "build:web": "vite build --config vite.config.web.ts",
+        "eslint": "eslint --ext .js,.vue src",
+        "eslint:fix": "eslint --fix --ext .js,.vue src"
+    },
+    "dependencies": {
+        "ably": "^2.9.0",
+        "alpinejs": "^3.14.9"
+    },
+    "devDependencies": {
+        "@types/node": "^20.12.3",
+        "@typescript-eslint/eslint-plugin": "^7.4.0",
+        "@vitejs/plugin-legacy": "^6.1.1",
+        "@vitejs/plugin-vue": "^5.2.1",
+        "eslint": "^8.35.0",
+        "eslint-config-prettier": "^8.7.0",
+        "eslint-plugin-prettier": "^4.2.1",
+        "prettier": "^2.8.4",
+        "rollup-plugin-terser": "^7.0.2",
+        "sass": "^1.61.0",
+        "terser": "^5.40.0",
+        "typescript": "^5.4.3",
+        "unplugin-auto-import": "^0.17.5",
+        "unplugin-vue-components": "^0.26.0",
+        "vite": "^6.0.0",
+        "vite-bundle-visualizer": "^1.1.0",
+        "vite-plugin-eslint": "^1.8.1"
+    }
+}

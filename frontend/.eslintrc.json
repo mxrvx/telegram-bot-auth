@@ -1,0 +1,19 @@
+{
+    "root": true,
+    "env": {
+        "browser": true,
+        "node": true,
+        "es2021": true
+    },
+    "extends": ["plugin:prettier/recommended"],
+    "plugins": ["prettier"],
+    "parser": "@typescript-eslint/parser",
+    "parserOptions": {
+        "parser": "@typescript-eslint/parser"
+    },
+    "rules": {
+        "no-console": 0,
+        "no-new": 0,
+        "@typescript-eslint/no-this-alias": 0
+    }
+}

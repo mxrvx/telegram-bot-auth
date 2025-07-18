@@ -1,0 +1,10 @@
+.idea
+/vendor/
+/runtime/
+/assets/upload/
+/assets/frontend/
+/frontend/node_modules/
+/frontend/auto-imports.d.ts
+/tmp/
+composer.lock
+
