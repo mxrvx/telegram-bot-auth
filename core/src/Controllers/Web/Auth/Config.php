@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MXRVX\Telegram\Bot\Auth\Controllers\Web\Auth;
 
 use MXRVX\Telegram\Bot\Auth\App;
+use MXRVX\Telegram\Bot\Auth\Tools\Lexicon;
 use Psr\Http\Message\ResponseInterface;
 
 class Config extends Action
@@ -27,6 +28,7 @@ class Config extends Action
         $config = [
             'locale' => $locale,
             'context' => $this->context->key,
+            'lexicon' => Lexicon::items($locale, ['errors']),
             'ably_api_key' => (string) $app->config->getSetting('ably_public_api_key')?->getStringValue(),
             'store' => $this->getStore(),
         ];

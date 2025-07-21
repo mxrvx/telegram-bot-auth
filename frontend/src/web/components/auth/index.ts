@@ -39,6 +39,12 @@ export default function () {
             })
         },
         login() {
+            const win = window.open('', '_blank')
+            if (!win) {
+                alert($l('errors.window.open'))
+                return
+            }
+
             $post(`${ApiPath}login/`, {
                 params: {},
             })
@@ -46,16 +52,24 @@ export default function () {
                     if (data.url) {
                         this.current = true
                         setCurrent(this.current)
-                        window.open(data.url, '_blank')
+                        win.location.href = data.url
                     } else {
-                        console.error('Ошибка получения URL для входа')
+                        win.close()
+                        alert($l('errors.action.link'))
                     }
                 })
                 .catch(() => {
+                    win.close()
                     window.location.reload()
                 })
         },
         logout() {
+            const win = window.open('', '_blank')
+            if (!win) {
+                alert($l('errors.window.open'))
+                return
+            }
+
             $post(`${ApiPath}logout/`, {
                 params: {},
             })
@@ -63,12 +77,14 @@ export default function () {
                     if (data.url) {
                         this.current = true
                         setCurrent(this.current)
-                        window.open(data.url, '_blank')
+                        win.location.href = data.url
                     } else {
-                        console.error('Ошибка получения URL для выхода')
+                        win.close()
+                        alert($l('errors.action.link'))
                     }
                 })
                 .catch(() => {
+                    win.close()
                     window.location.reload()
                 })
         },

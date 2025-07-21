@@ -5,6 +5,7 @@ import path from 'path'
 import ai from 'unplugin-auto-import/vite'
 import withNamespace, {aiConfig} from './src/web/config'
 import {terser} from 'rollup-plugin-terser'
+//import legacy from '@vitejs/plugin-legacy'
 
 const alpinePackagePath = path.resolve(__dirname, 'node_modules/alpinejs/package.json')
 const alpinePackageJson = JSON.parse(fs.readFileSync(alpinePackagePath, 'utf-8'))
@@ -14,8 +15,19 @@ export default withNamespace('mxrvx-telegram-bot-auth', {
     esbuild: {
         target: 'node18',
     },
-    // plugins: [],
     plugins: [
+        // legacy({
+        //     targets: ['defaults', 'iOS >= 13'],
+        //     additionalLegacyPolyfills: [
+        //         'regenerator-runtime/runtime',
+        //         'core-js/stable',
+        //         'core-js/proposals/global-this',
+        //     ],
+        //     renderLegacyChunks: true,
+        //     renderModernChunks: true,
+        //     polyfills: true,
+        //     modernPolyfills: true,
+        // }),
         ai({
             ...aiConfig,
             dirs: ['src/web/tools'],

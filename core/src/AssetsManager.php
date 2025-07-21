@@ -14,6 +14,12 @@ namespace MXRVX\Telegram\Bot\Auth;
  * }
  *
  * @psalm-type ManifestStructure = array<string, ManifestItemStructure>
+ *
+ * @psalm-type AssetsStructure = array{
+ * module: array<string>,
+ * nomodule: array<string>,
+ * css: array<string>
+ * }
  */
 class AssetsManager
 {
@@ -26,7 +32,7 @@ class AssetsManager
             $modx,
             'web',
             $withoutCss,
-            static fn(string $file) => $modx->regClientHTMLBlock(\sprintf('<script type="module" src="%s"></script>', $file)),
+            static fn(string $file, bool $isModule) => $modx->regClientHTMLBlock(\sprintf('<script src="%s" %s></script>', $file, $isModule ? 'type="module"' : 'nomodule')),
             static fn(string $file) => $modx->regClientCss($file),
         );
     }
@@ -38,13 +44,13 @@ class AssetsManager
             $controller,
             'mgr',
             $withoutCss,
-            static fn(string $file) => $controller->addHtml(\sprintf('<script type="module" src="%s"></script>', $file)),
+            static fn(string $file, bool $isModule) => $controller->addHtml(\sprintf('<script src="%s" %s></script>', $file, $isModule ? 'type="module"' : 'nomodule')),
             static fn(string $file) => $controller->addCss($file),
         );
     }
 
     /**
-     * @param callable(string): void $jsRegister
+     * @param callable(string, bool): void $jsRegister
      * @param callable(string): void $cssRegister
      */
     protected static function registerAssets(
@@ -56,16 +62,21 @@ class AssetsManager
     ): void {
         $assets = self::getAssetsFromManifest($context);
 
-        if (!empty($assets)) {
-            foreach ($assets as $file) {
-                if (\str_ends_with($file, '.js')) {
-                    $jsRegister($file);
-                } elseif (!$withoutCss) {
+        if (self::isEmpty($assets)) {
+            self::registerDevelopmentAssets($instance, $context);
+        } else {
+            foreach ($assets['nomodule'] as $file) {
+                $jsRegister($file, false);
+            }
+            foreach ($assets['module'] as $file) {
+                $jsRegister($file, true);
+            }
+            if (!$withoutCss) {
+                foreach ($assets['css'] as $file) {
                     $cssRegister($file);
                 }
             }
-        } else {
-            self::registerDevelopmentAssets($instance, $context);
+
         }
     }
 
@@ -120,48 +131,64 @@ class AssetsManager
     }
 
     /**
-     * @return string[]
+     * @return AssetsStructure
      */
     protected static function getAssetsFromManifest(string $context): array
     {
+        $assets = [
+            'module' => [],
+            'nomodule' => [],
+            'css' => [],
+        ];
+
         $baseUrl = MODX_ASSETS_URL . 'components/' . App::NAMESPACE . '/src/' . $context . '/';
         $manifestPath = MODX_ASSETS_PATH . 'components/' . App::NAMESPACE . '/src/' . $context . '/manifest.json';
 
         if (!\file_exists($manifestPath) || !\is_readable($manifestPath)) {
-            return [];
+            return $assets;
         }
 
         $content = \file_get_contents($manifestPath);
         if ($content === false) {
-            return [];
+            return $assets;
         }
 
         /** @var ManifestStructure $manifest */
         $manifest = \json_decode($content, true);
         if (\json_last_error() !== JSON_ERROR_NONE) {
-            $manifest = [];
+            return $assets;
         }
 
-
-        $assets = [];
-        foreach ($manifest as $entry) {
+        foreach ($manifest as $name => $entry) {
+            $isModule = \str_contains($name, 'legacy') ? false : true;
 
             /** @psalm-suppress RedundantCondition */
             if (!empty($entry['css']) && \is_array($entry['css'])) {
                 foreach ($entry['css'] as $cssFile) {
-                    $assets[] = $baseUrl . $cssFile;
+                    $assets['css'][] = $baseUrl . $cssFile;
                 }
             }
 
-            if (!empty($entry['file']) && \str_ends_with($entry['file'], '.js')) {
-                $assets[] = $baseUrl . $entry['file'];
-            }
-
-            if (!empty($entry['file']) && \str_ends_with($entry['file'], '.ts')) {
-                $assets[] = $baseUrl . $entry['file'];
+            if (!empty($entry['file'])) {
+                foreach (['.js', '.ts'] as $ext) {
+                    if (\str_ends_with($entry['file'], $ext)) {
+                        $assets[$isModule ? 'module' : 'nomodule'][] = $baseUrl . $entry['file'];
+                        break;
+                    }
+                }
             }
         }
 
         return $assets;
+    }
+
+    /**
+     * @param AssetsStructure $assets
+     *
+     * @psalm-assert-if-true AssetsStructure $assets is empty
+     */
+    protected static function isEmpty(array $assets): bool
+    {
+        return \count(\array_filter($assets, static fn($a) => !empty($a))) === 0;
     }
 }

@@ -1,4 +1,3 @@
-// @ts-ignore
 import Web from './web/app.ts'
 import './web/scss/index.scss'
 

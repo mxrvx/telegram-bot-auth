@@ -1,7 +1,8 @@
-let lexiconKey: string
+type LexiconType = Record<string, string>
 
-function getRecords() {
-    return window[$ns]?.lexicon || {}
+function getRecords(): LexiconType {
+    // @ts-ignore
+    return window[$config.namespace]?.config?.lexicon ?? {}
 }
 
 export function useLexicon(key: string, placeholders?: Record<string, string | number>, amount?: number | string) {
